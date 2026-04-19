@@ -4,7 +4,7 @@ Vibecoded  Windows-style per-app volume control for macOS with a native SwiftUI 
 
 <img width="552" height="187" alt="image" src="https://github.com/user-attachments/assets/128d5cbb-5fe5-4c55-8071-5d668f51eefb" />
 
-## Install
+## Install & Update
 
 One-liner — downloads the latest prebuilt `.app`, installs to `/Applications`, launches it. No Xcode toolchain required:
 
