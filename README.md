@@ -7,7 +7,7 @@ Per-app volume control for macOS with a native SwiftUI mixer window. Built on **
 One-liner — downloads the latest prebuilt `.app`, installs to `/Applications`, launches it. No Xcode toolchain required:
 
 ```sh
-curl -L https://github.com/Fondson/vol-mixer/releases/latest/download/vol-mixer.app.zip -o /tmp/vol-mixer.app.zip && unzip -o /tmp/vol-mixer.app.zip -d /Applications && xattr -cr /Applications/vol-mixer.app && open /Applications/vol-mixer.app
+curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/install.sh | bash
 ```
 
 ## Build from source
