@@ -1,6 +1,6 @@
 # Agent instructions
 
-Guidance for AI coding agents (Claude, Codex, etc.) working in this repo. Human contributors: read if curious, but nothing here is required of you.
+Guidance for AI coding agents (Claude, Codex, etc.) working in this repo.
 
 ## Release after shipping code changes
 
@@ -43,6 +43,5 @@ If any of these fail, fix them before retrying — don't `--force` anything.
 
 ## Do not
 
-- Add `Co-Authored-By: Claude` (or any Claude/Anthropic attribution) to commits or PR descriptions.
 - Force-push `main` unless the user explicitly asks.
 - Commit build artefacts — `.build/`, `vol-mixer.app/`, `vol-mixer.app.zip` are gitignored.
