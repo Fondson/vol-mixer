@@ -12,6 +12,8 @@ One-liner — downloads the latest prebuilt `.app`, installs to `/Applications`,
 curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/install.sh | bash
 ```
 
+> Don't trust it? Don't run it.
+
 ## Build from source
 
 Requires the Swift toolchain (Xcode command line tools).
