@@ -1,0 +1,6 @@
+.DS_Store
+.build/
+vol-mixer.app/
+*.xcodeproj/
+.swiftpm/
+Package.resolved
