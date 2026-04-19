@@ -44,4 +44,3 @@ Running the CLI directly from `./build/release/vol-mixer` won't pass TCC — alw
 ## Known limitations
 
 - Core Audio Process Taps are macOS 14.2+. Earlier versions need a different approach (kext / virtual driver / Background Music).
-- No limiter. Gain > 1.0 hard-clips on the way to the output buffer.
