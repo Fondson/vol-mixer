@@ -1,6 +1,8 @@
 # vol-mixer
 
-Per-app volume control for macOS with a native SwiftUI mixer window. Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
+Vibecoded  Windows-style per-app volume control for macOS with a native SwiftUI mixer window. Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
+
+<img width="552" height="187" alt="image" src="https://github.com/user-attachments/assets/128d5cbb-5fe5-4c55-8071-5d668f51eefb" />
 
 ## Install
 
