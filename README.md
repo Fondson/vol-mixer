@@ -21,13 +21,11 @@ curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/inst
 Requires the Swift toolchain (Xcode command line tools).
 
 ```sh
-./build.sh
+./scripts/build.sh
 open vol-mixer.app
 ```
 
-On first use the app will prompt for the **Audio Capture** permission as soon as you move any slider. Grant it in *System Settings → Privacy & Security → Audio Capture*, then quit and relaunch.
-
-> Ad-hoc signing is fine for local use. The TCC grant is tied to the specific binary hash, so rebuilding will trigger a fresh prompt. If you want persistent grants, sign with a real Developer ID certificate.
+First build auto-provisions a persistent self-signed cert (`scripts/setup-signing.sh`) so the TCC Audio Capture grant survives rebuilds. On first launch, macOS prompts for Audio Capture as soon as you move a slider — grant it in *System Settings → Privacy & Security → Audio Capture*, then quit and relaunch.
 
 ## CLI
 

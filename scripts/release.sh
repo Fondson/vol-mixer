@@ -29,7 +29,7 @@ fi
 
 echo "→ clean build"
 rm -rf .build
-./build.sh
+./scripts/build.sh
 
 echo "→ zipping (ditto preserves codesign)"
 rm -f vol-mixer.app.zip
