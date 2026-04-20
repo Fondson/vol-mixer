@@ -16,6 +16,17 @@ curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/inst
 
 > Don't trust it? Don't run it.
 
+## Verify the release
+
+Every release is built in [GitHub Actions](.github/workflows/release.yml) with a Sigstore-signed [SLSA provenance](https://slsa.dev/spec/v1.0/provenance) attestation binding the `.app.zip` to the exact commit it was built from. To verify before installing:
+
+```sh
+curl -L https://github.com/Fondson/vol-mixer/releases/latest/download/vol-mixer.app.zip -o vol-mixer.app.zip
+gh attestation verify vol-mixer.app.zip --repo Fondson/vol-mixer
+```
+
+Exit code `0` means the bytes were produced by this repo's release workflow on a GitHub-hosted runner — no local build machine, no out-of-band upload.
+
 ## Build from source
 
 Requires the Swift toolchain (Xcode command line tools).
