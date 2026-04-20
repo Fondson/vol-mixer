@@ -1,6 +1,8 @@
-# vol-mixer
+# Volume Mixer
 
-Vibecoded  Windows-style per-app volume control for macOS with a native SwiftUI mixer window.
+<img width="96" height="96" alt="Volume Mixer icon" src="https://raw.githubusercontent.com/Fondson/vol-mixer/main/App/AppIcon.png" align="right" />
+
+Vibecoded Windows-style per-app volume control for macOS — a native SwiftUI mixer in the menu bar.
 
 Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
 
@@ -21,8 +23,8 @@ curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/inst
 Every release is built in [GitHub Actions](.github/workflows/release.yml) with a Sigstore-signed [SLSA provenance](https://slsa.dev/spec/v1.0/provenance) attestation binding the `.app.zip` to the exact commit it was built from. To verify before installing:
 
 ```sh
-curl -L https://github.com/Fondson/vol-mixer/releases/latest/download/vol-mixer.app.zip -o vol-mixer.app.zip
-gh attestation verify vol-mixer.app.zip --repo Fondson/vol-mixer
+curl -L "https://github.com/Fondson/vol-mixer/releases/latest/download/Volume%20Mixer.app.zip" -o "Volume Mixer.app.zip"
+gh attestation verify "Volume Mixer.app.zip" --repo Fondson/vol-mixer
 ```
 
 Exit code `0` means the bytes were produced by this repo's release workflow on a GitHub-hosted runner — no local build machine, no out-of-band upload.
@@ -33,7 +35,7 @@ Requires the Swift toolchain (Xcode command line tools).
 
 ```sh
 ./scripts/build.sh
-open vol-mixer.app
+open "Volume Mixer.app"
 ```
 
 First build auto-provisions a persistent self-signed cert (`scripts/setup-signing.sh`) so the TCC Audio Capture grant survives rebuilds. On first launch, macOS prompts for Audio Capture as soon as you move a slider — grant it in *System Settings → Privacy & Security → Audio Capture*, then quit and relaunch.
@@ -43,8 +45,8 @@ First build auto-provisions a persistent self-signed cert (`scripts/setup-signin
 The same binary ships a CLI for scripting:
 
 ```sh
-vol-mixer.app/Contents/MacOS/vol-mixer list
-vol-mixer.app/Contents/MacOS/vol-mixer run 6307 0.3
+"/Applications/Volume Mixer.app/Contents/MacOS/vol-mixer" list
+"/Applications/Volume Mixer.app/Contents/MacOS/vol-mixer" run 6307 0.3
 ```
 
 - `list` prints every process Core Audio tracks.

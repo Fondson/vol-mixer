@@ -32,7 +32,7 @@ struct ContentView: View {
         HStack(spacing: 10) {
             Image(systemName: "speaker.wave.2.fill")
                 .foregroundStyle(.secondary)
-            Text("Per-app volume")
+            Text("Volume Mixer")
                 .font(.headline)
             Spacer()
             Button {

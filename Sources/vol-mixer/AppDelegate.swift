@@ -25,7 +25,7 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "speaker.wave.2.fill",
-                                   accessibilityDescription: "vol-mixer")
+                                   accessibilityDescription: "Volume Mixer")
             button.image?.isTemplate = true
             button.target = self
             button.action = #selector(statusItemClicked(_:))
@@ -130,7 +130,7 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         launchItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(launchItem)
         menu.addItem(.separator())
-        menu.addItem(menuItem(title: "Quit vol-mixer",
+        menu.addItem(menuItem(title: "Quit Volume Mixer",
                               action: #selector(quit),
                               keyEquivalent: "q"))
 

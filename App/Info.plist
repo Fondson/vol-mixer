@@ -7,24 +7,28 @@
     <key>CFBundleIdentifier</key>
     <string>com.fondsontran.vol-mixer</string>
     <key>CFBundleName</key>
-    <string>vol-mixer</string>
+    <string>Volume Mixer</string>
     <key>CFBundleDisplayName</key>
-    <string>vol-mixer</string>
+    <string>Volume Mixer</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>0.2.0</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>2</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.2</string>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>vol-mixer taps the selected application's audio so it can be played back at a user-chosen volume.</string>
+    <string>Volume Mixer taps the selected application's audio so it can be played back at a user-chosen volume.</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Volume Mixer</string>
 </dict>
 </plist>

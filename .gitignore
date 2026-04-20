@@ -1,7 +1,8 @@
 .DS_Store
 .build/
-vol-mixer.app/
-vol-mixer.app.zip
+Volume Mixer.app/
+Volume Mixer.app.zip
+App/AppIcon.iconset/
 *.xcodeproj/
 .swiftpm/
 Package.resolved

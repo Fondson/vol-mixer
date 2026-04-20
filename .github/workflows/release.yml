@@ -9,6 +9,10 @@ permissions:
   id-token: write       # OIDC token for Sigstore
   attestations: write   # write build-provenance attestations
 
+env:
+  ASSET: Volume Mixer.app.zip
+  BUNDLE: Volume Mixer.app
+
 jobs:
   release:
     runs-on: macos-14
@@ -25,16 +29,16 @@ jobs:
         run: ./scripts/build.sh
 
       - name: Zip (codesign-preserving)
-        run: ditto -c -k --keepParent vol-mixer.app vol-mixer.app.zip
+        run: ditto -c -k --keepParent "$BUNDLE" "$ASSET"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: vol-mixer.app.zip
+          subject-path: ${{ env.ASSET }}
 
       - name: SHA256
         id: sha
-        run: echo "sha=$(shasum -a 256 vol-mixer.app.zip | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+        run: echo "sha=$(shasum -a 256 "$ASSET" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
         env:
@@ -44,7 +48,7 @@ jobs:
           SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
-          gh release create "$TAG" vol-mixer.app.zip --title "$TAG" --generate-notes
+          gh release create "$TAG" "$ASSET" --title "$TAG" --generate-notes
           gh release view "$TAG" --json body --jq .body > /tmp/notes.md
           {
             echo ""
@@ -54,7 +58,7 @@ jobs:
             echo ""
             echo "**Verify provenance** (proves this binary was built from this repo at this commit):"
             echo '```sh'
-            echo "gh attestation verify vol-mixer.app.zip --repo $REPO"
+            echo "gh attestation verify \"$ASSET\" --repo $REPO"
             echo '```'
           } >> /tmp/notes.md
           gh release edit "$TAG" --notes-file /tmp/notes.md

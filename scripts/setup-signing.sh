@@ -64,5 +64,5 @@ echo "→ imported into $KEYCHAIN"
 echo
 echo "Next:"
 echo "  1. ./build.sh                       # now signs with '$CERT_NAME'"
-echo "  2. open vol-mixer.app"
+echo "  2. open \"Volume Mixer.app\""
 echo "  3. Grant Audio Capture permission ONCE. Subsequent rebuilds keep it."

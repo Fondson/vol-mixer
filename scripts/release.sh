@@ -32,15 +32,15 @@ rm -rf .build
 ./scripts/build.sh
 
 echo "→ zipping (ditto preserves codesign)"
-rm -f vol-mixer.app.zip
-ditto -c -k --keepParent vol-mixer.app vol-mixer.app.zip
+rm -f "Volume Mixer.app.zip"
+ditto -c -k --keepParent "Volume Mixer.app" "Volume Mixer.app.zip"
 
 echo "→ tagging $VERSION"
 git tag "$VERSION"
 git push origin "$VERSION"
 
 echo "→ creating GitHub release"
-gh release create "$VERSION" vol-mixer.app.zip \
+gh release create "$VERSION" "Volume Mixer.app.zip" \
     --title "$VERSION" \
     --generate-notes
 

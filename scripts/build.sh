@@ -7,7 +7,7 @@
 set -euo pipefail
 
 CONFIG=${CONFIG:-release}
-APP=vol-mixer.app
+APP="Volume Mixer.app"
 BIN=vol-mixer
 CERT_NAME="vol-mixer-dev"
 
@@ -24,6 +24,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH" "$APP/Contents/MacOS/$BIN"
 cp App/Info.plist "$APP/Contents/Info.plist"
+cp App/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # Ensure the persistent signing cert exists locally. setup-signing.sh is
 # idempotent. Skip in CI — runners are ephemeral; ad-hoc signing is fine.
@@ -43,4 +44,4 @@ echo "→ codesigning ($IDENTITY)"
 codesign --force --deep --sign "$IDENTITY" --options runtime "$APP"
 codesign --verify "$APP"
 
-echo "→ done. open $APP"
+echo "→ done. open \"$APP\""
