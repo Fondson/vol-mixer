@@ -1,9 +1,10 @@
-<img src="https://raw.githubusercontent.com/Fondson/vol-mixer/main/App/AppIcon.png" width="128" height="128" alt="Volume Mixer icon" align="left" />
+<img src="https://raw.githubusercontent.com/Fondson/vol-mixer/main/App/AppIcon.png" height="128" alt="Volume Mixer icon" align="left" />
 
 <h3>Volume Mixer</h3>
 
 Vibecoded Windows-style per-app volume control for macOS — a native SwiftUI mixer in the menu bar.
 
+<br clear="all" />
 <br clear="all" />
 
 Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
