@@ -25,8 +25,9 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_PATH" "$APP/Contents/MacOS/$BIN"
 cp App/Info.plist "$APP/Contents/Info.plist"
 
-# Ensure the persistent signing cert exists. setup-signing.sh is idempotent.
-if ! security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
+# Ensure the persistent signing cert exists locally. setup-signing.sh is
+# idempotent. Skip in CI — runners are ephemeral; ad-hoc signing is fine.
+if [[ -z "${CI:-}" ]] && ! security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
     echo "→ bootstrapping persistent signing identity (one-time)"
     ./scripts/setup-signing.sh
 fi
