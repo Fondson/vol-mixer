@@ -24,8 +24,13 @@ func render(px: Int) -> NSBitmapImageRep {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-    let rect = NSRect(x: 0, y: 0, width: s, height: s)
-    let path = NSBezierPath(roundedRect: rect, xRadius: s * 0.22, yRadius: s * 0.22)
+    // Apple's macOS icon grid insets content ~10% from the canvas; this
+    // also stops anti-aliased squircle edges from fringing on dark pages.
+    let inset = s * 0.10
+    let rect = NSRect(x: inset, y: inset, width: s - 2 * inset, height: s - 2 * inset)
+    let path = NSBezierPath(roundedRect: rect,
+                            xRadius: rect.width * 0.22,
+                            yRadius: rect.height * 0.22)
 
     let gradient = NSGradient(colors: [
         NSColor(srgbRed: 0.75, green: 0.86, blue: 0.95, alpha: 1.0),
