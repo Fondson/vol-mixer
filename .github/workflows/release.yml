@@ -10,7 +10,9 @@ permissions:
   attestations: write   # write build-provenance attestations
 
 env:
-  ASSET: Volume Mixer.app.zip
+  # GitHub normalises spaces in release-asset names to dots. Zip with the
+  # dotted name up-front so the upload URL matches what consumers download.
+  ASSET: Volume.Mixer.app.zip
   BUNDLE: Volume Mixer.app
 
 jobs:

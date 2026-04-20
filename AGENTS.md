@@ -2,7 +2,7 @@
 
 ## Naming
 
-Repo, inner binary, `CFBundleExecutable`, `CFBundleIdentifier`, and the `vol-mixer-dev` signing cert are all `vol-mixer`. The shipped bundle, install path, release asset, and user-visible display name are **Volume Mixer** — note the space in `Volume Mixer.app` / `Volume Mixer.app.zip`. Quote paths in shell; URL-encode as `Volume%20Mixer.app.zip`.
+Repo, inner binary, `CFBundleExecutable`, `CFBundleIdentifier`, and the `vol-mixer-dev` signing cert are all `vol-mixer`. The shipped bundle and display name are **Volume Mixer**. The release zip is `Volume.Mixer.app.zip` (dotted, GitHub normalises spaces in asset names), but inside the zip the bundle is `Volume Mixer.app` (with a space). Quote any shell path that contains a space.
 
 ## Cutting a release
 

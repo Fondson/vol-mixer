@@ -3,8 +3,10 @@
 # Requires only curl, unzip, xattr, open — all ship with macOS.
 set -euo pipefail
 
-URL="https://github.com/Fondson/vol-mixer/releases/latest/download/Volume%20Mixer.app.zip"
-ZIP="${TMPDIR:-/tmp}/Volume Mixer.app.zip"
+# GitHub normalises spaces in release-asset names to dots, so the URL uses
+# "Volume.Mixer.app.zip" but the unzipped bundle is "Volume Mixer.app".
+URL="https://github.com/Fondson/vol-mixer/releases/latest/download/Volume.Mixer.app.zip"
+ZIP="${TMPDIR:-/tmp}/Volume.Mixer.app.zip"
 DEST="/Applications"
 APP="$DEST/Volume Mixer.app"
 

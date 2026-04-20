@@ -32,15 +32,16 @@ rm -rf .build
 ./scripts/build.sh
 
 echo "→ zipping (ditto preserves codesign)"
-rm -f "Volume Mixer.app.zip"
-ditto -c -k --keepParent "Volume Mixer.app" "Volume Mixer.app.zip"
+# Dotted zip name matches what GitHub will call the asset after upload.
+rm -f "Volume.Mixer.app.zip"
+ditto -c -k --keepParent "Volume Mixer.app" "Volume.Mixer.app.zip"
 
 echo "→ tagging $VERSION"
 git tag "$VERSION"
 git push origin "$VERSION"
 
 echo "→ creating GitHub release"
-gh release create "$VERSION" "Volume Mixer.app.zip" \
+gh release create "$VERSION" "Volume.Mixer.app.zip" \
     --title "$VERSION" \
     --generate-notes
 

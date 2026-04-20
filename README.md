@@ -1,12 +1,17 @@
-# Volume Mixer
+<p align="center">
+  <img width="128" height="128" alt="Volume Mixer icon" src="https://raw.githubusercontent.com/Fondson/vol-mixer/main/App/AppIcon.png" />
+</p>
 
-<img width="96" height="96" alt="Volume Mixer icon" src="https://raw.githubusercontent.com/Fondson/vol-mixer/main/App/AppIcon.png" align="right" />
+<h1 align="center">Volume Mixer</h1>
 
-Vibecoded Windows-style per-app volume control for macOS — a native SwiftUI mixer in the menu bar.
+<p align="center">
+  Vibecoded Windows-style per-app volume control for macOS — a native SwiftUI mixer in the menu bar.<br/>
+  Built on <strong>Core Audio Process Taps</strong> (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
+</p>
 
-Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
-
-<img width="552" height="187" alt="image" src="https://github.com/user-attachments/assets/128d5cbb-5fe5-4c55-8071-5d668f51eefb" />
+<p align="center">
+  <img width="552" height="187" alt="Volume Mixer screenshot" src="https://github.com/user-attachments/assets/128d5cbb-5fe5-4c55-8071-5d668f51eefb" />
+</p>
 
 ## Install & Update
 
@@ -23,8 +28,8 @@ curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/inst
 Every release is built in [GitHub Actions](.github/workflows/release.yml) with a Sigstore-signed [SLSA provenance](https://slsa.dev/spec/v1.0/provenance) attestation binding the `.app.zip` to the exact commit it was built from. To verify before installing:
 
 ```sh
-curl -L "https://github.com/Fondson/vol-mixer/releases/latest/download/Volume%20Mixer.app.zip" -o "Volume Mixer.app.zip"
-gh attestation verify "Volume Mixer.app.zip" --repo Fondson/vol-mixer
+curl -L https://github.com/Fondson/vol-mixer/releases/latest/download/Volume.Mixer.app.zip -o Volume.Mixer.app.zip
+gh attestation verify Volume.Mixer.app.zip --repo Fondson/vol-mixer
 ```
 
 Exit code `0` means the bytes were produced by this repo's release workflow on a GitHub-hosted runner — no local build machine, no out-of-band upload.
