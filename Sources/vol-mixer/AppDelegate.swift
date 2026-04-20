@@ -8,16 +8,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
 
-    // Popover sizing. Kept here so the row-height constant matches
-    // ProcessRow's actual layout (icon 32 + vertical padding 8·2 + divider 1).
-    private let popoverWidth: CGFloat = 560
-    private let popoverMinHeight: CGFloat = 160
-    private let popoverMaxHeight: CGFloat = 600
-    // Header (44) + divider + output picker row (~36) + divider.
-    private let headerHeight: CGFloat = 84
-    private let rowHeight: CGFloat = 49
-    private let emptyStateHeight: CGFloat = 160
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Accessory = menu-bar-only utility, no dock icon, no app menu.
         NSApp.setActivationPolicy(.accessory)
@@ -36,12 +26,13 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
-        popover.contentViewController = NSHostingController(
-            rootView: ContentView().environment(store))
+        // Auto-size the popover from SwiftUI's intrinsic content size. Bounds
+        // (width + maxHeight) are declared on ContentView's root .frame.
+        let host = NSHostingController(rootView: ContentView().environment(store))
+        host.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = host
 
         store.beginRefreshing()
-        recomputePopoverSize()
-        trackStoreForSizing()
         autoEnableLaunchAtLoginOnce()
     }
 
@@ -61,30 +52,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             NSLog("vol-mixer: auto-registered as Login Item on first launch")
         } catch {
             NSLog("vol-mixer: auto-register failed: %@", "\(error)")
-        }
-    }
-
-    // MARK: - Dynamic sizing
-
-    private func recomputePopoverSize() {
-        let count = store.processes.count
-        let natural: CGFloat = count == 0
-            ? headerHeight + emptyStateHeight
-            : headerHeight + 8 + CGFloat(count) * rowHeight
-        let clamped = min(max(natural, popoverMinHeight), popoverMaxHeight)
-        popover.contentSize = NSSize(width: popoverWidth, height: clamped)
-    }
-
-    /// Re-arm an observation each time the tracked property changes. Without
-    /// re-arming, `withObservationTracking` only fires once.
-    private func trackStoreForSizing() {
-        withObservationTracking {
-            _ = store.processes.count
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.recomputePopoverSize()
-                self?.trackStoreForSizing()
-            }
         }
     }
 
@@ -110,10 +77,9 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             popover.performClose(nil)
             return
         }
-        // Re-scan the process list before opening so the popover opens at
-        // the right size for what we're about to show.
+        // Re-scan the process list before opening so rows are up-to-date
+        // and the popover sizes to current content.
         store.refresh()
-        recomputePopoverSize()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // Accessory apps don't auto-activate; without this the popover renders
         // but keyboard + hover-button states can feel off.

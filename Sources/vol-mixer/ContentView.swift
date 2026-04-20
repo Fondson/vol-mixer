@@ -15,17 +15,18 @@ struct ContentView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(store.processes, id: \.pid) { p in
+                        ForEach(Array(store.processes.enumerated()), id: \.element.pid) { i, p in
+                            if i > 0 { Divider().opacity(0.35) }
                             ProcessRow(process: p)
-                            Divider().opacity(0.35)
                         }
                     }
-                    .padding(.vertical, 4)
                 }
+                .scrollIndicators(.hidden)
             }
         }
-        // Width is pinned by the popover; let the popover decide the height.
-        .frame(minWidth: 520)
+        // Fixed width, content-hugging height, scroll when content exceeds 600pt.
+        .frame(width: 560)
+        .frame(maxHeight: 600)
     }
 
     private var header: some View {
