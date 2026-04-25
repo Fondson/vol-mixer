@@ -164,7 +164,16 @@ final class MixerStore {
         !mixers.isEmpty || !muted.isEmpty || gains.contains { $0.value != 1.0 }
     }
     func effectiveGain(pid: pid_t) -> Float {
-        muted.contains(pid) ? 0 : (gains[pid] ?? 1.0)
+        muted.contains(pid) ? 0 : Self.gainCurve(gains[pid] ?? 1.0)
+    }
+
+    /// Maps slider position (0…1.5) to an audio gain multiplier. Linear gain
+    /// is perceptually misleading — 0.5 amplitude only sounds ~6 dB quieter.
+    /// Cube law for attenuation gives audible steps across the whole slider;
+    /// boost (>1.0) stays linear since hard-clipping is the real ceiling.
+    private static func gainCurve(_ position: Float) -> Float {
+        let p = max(0, position)
+        return p <= 1.0 ? p * p * p : p
     }
 
     /// Pushes the effective gain (0 if muted, else slider value) to the mixer,
