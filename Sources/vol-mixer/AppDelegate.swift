@@ -7,9 +7,10 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private let store = MixerStore()
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
+    private var popoverClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Accessory = menu-bar-only utility, no dock icon, no app menu.
+        // Menu-bar-only utility: no dock icon, no app menu.
         NSApp.setActivationPolicy(.accessory)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,15 +27,17 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         popover.behavior = .transient
         popover.delegate = self
         popover.animates = true
-        // Auto-size the popover from SwiftUI's intrinsic content size. Bounds
-        // (width + maxHeight) are declared on ContentView's root .frame.
-        let host = NSHostingController(rootView: ContentView().environment(store))
+        let host = NSHostingController(rootView: ContentView(showsTitle: true).environment(store))
         host.sizingOptions = [.preferredContentSize]
         popover.contentViewController = host
 
         store.beginRefreshing()
         autoEnableLaunchAtLoginOnce()
+        Updater.shared.startAutomaticChecks()
     }
+
+    @objc private func checkForUpdates() { Updater.shared.checkNow() }
+    @objc private func toggleAutoUpdate() { Updater.shared.autoCheckEnabled.toggle() }
 
     /// On the first launch we auto-register as a Login Item so the menu bar
     /// mixer is always available. Guarded by a UserDefaults flag so that
@@ -58,9 +61,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     // MARK: - Status item click
 
     @objc private func statusItemClicked(_ sender: Any?) {
-        let type = NSApp.currentEvent?.type
-        NSLog("vol-mixer: status item clicked, event type = %@",
-              type.map { "\($0.rawValue)" } ?? "nil")
         guard let event = NSApp.currentEvent else { togglePopover(); return }
         switch event.type {
         case .rightMouseUp:
@@ -77,18 +77,33 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             popover.performClose(nil)
             return
         }
-        // Re-scan the process list before opening so rows are up-to-date
-        // and the popover sizes to current content.
         store.refresh()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        // Accessory apps don't auto-activate; without this the popover renders
-        // but keyboard + hover-button states can feel off.
+        // Accessory apps don't auto-activate; without this the popover's hover
+        // and keyboard states can feel off.
         NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
+        // Clicks on other menu-bar items land in a different process, so only a
+        // global monitor sees them — use it to close the popover.
+        removePopoverClickMonitor()
+        popoverClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            Task { @MainActor in self?.popover.performClose(nil) }
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        removePopoverClickMonitor()
+    }
+
+    private func removePopoverClickMonitor() {
+        if let monitor = popoverClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            popoverClickMonitor = nil
+        }
     }
 
     private func showContextMenu() {
-        NSLog("vol-mixer: showing context menu")
         let menu = NSMenu()
         let launchItem = menuItem(title: "Launch at Login",
                                   action: #selector(toggleLaunchAtLogin),
@@ -96,19 +111,29 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         launchItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         menu.addItem(launchItem)
         menu.addItem(.separator())
+        menu.addItem(menuItem(title: "Check for Updates…",
+                              action: #selector(checkForUpdates),
+                              keyEquivalent: ""))
+        let autoUpdate = menuItem(title: "Automatically Update",
+                                  action: #selector(toggleAutoUpdate),
+                                  keyEquivalent: "")
+        autoUpdate.state = Updater.shared.autoCheckEnabled ? .on : .off
+        menu.addItem(autoUpdate)
+        menu.addItem(.separator())
         menu.addItem(menuItem(title: "Quit Volume Mixer",
                               action: #selector(quit),
                               keyEquivalent: "q"))
 
         guard let button = statusItem.button else { return }
-        // Show directly — avoids the "attach/performClick/detach" race that
-        // can leave the menu without its actions on accessory-policy apps.
-        let origin = NSPoint(x: 0, y: button.bounds.height + 4)
-        menu.popUp(positioning: nil, at: origin, in: button)
+        // Show directly — avoids the "attach/performClick/detach" race that can
+        // leave the menu without its actions on accessory-policy apps. Drop it
+        // just below the button; placing it above ran off the top of the screen,
+        // which made macOS clamp it behind a scroll arrow.
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -4), in: button)
     }
 
-    // An accessory-policy app has no key window, so the responder chain
-    // doesn't reliably reach the delegate. Bind target explicitly.
+    // An accessory-policy app has no key window, so the responder chain doesn't
+    // reliably reach the delegate. Bind target explicitly.
     private func menuItem(title: String, action: Selector, keyEquivalent: String) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: keyEquivalent)
         item.target = self
@@ -116,7 +141,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     @objc private func quit() {
-        NSLog("vol-mixer: menu → quit")
         NSApp.terminate(nil)
     }
 
@@ -141,8 +165,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             alert.runModal()
         }
     }
-
-    // MARK: - Lifecycle
 
     func applicationWillTerminate(_ notification: Notification) {
         store.stopAll()

@@ -17,6 +17,15 @@ git tag -l --sort=-v:refname | head -1    # previous tag
 git tag vX.Y.Z && git push origin vX.Y.Z  # trigger CI
 ```
 
+## Auto-update
+
+The in-app updater installs a release only if its `.sig` verifies against the
+Ed25519 key built into [`Updater.swift`](Sources/vol-mixer/Updater.swift). Full
+one-time setup (keypair + signing cert + secrets) is in
+[`docs/auto-update-setup.md`](docs/auto-update-setup.md). CI degrades gracefully:
+no `UPDATE_PRIVATE_KEY` secret → no `.sig` (updater stays inert); no cert secret
+→ ad-hoc signing.
+
 ## Do not
 
 - Commit build artefacts (`.build/`, `Volume Mixer.app/`, `Volume Mixer.app.zip`, `App/AppIcon.iconset/` are gitignored).

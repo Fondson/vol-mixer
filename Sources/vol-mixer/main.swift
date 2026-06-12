@@ -12,8 +12,6 @@ MainActor.assumeIsolated {
     let delegate = VolMixerAppDelegate()
     let app = NSApplication.shared
     app.delegate = delegate
-    // Activation policy is set in AppDelegate.applicationDidFinishLaunching
-    // so LSUIElement-less debug builds behave the same as bundled ones.
     // Keep delegate alive for the lifetime of the process.
     objc_setAssociatedObject(app, &delegateKey, delegate, .OBJC_ASSOCIATION_RETAIN)
     app.run()

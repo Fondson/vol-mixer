@@ -24,8 +24,12 @@ func render(px: Int) -> NSBitmapImageRep {
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 
-    let rect = NSRect(x: 0, y: 0, width: s, height: s)
-    let path = NSBezierPath(roundedRect: rect, xRadius: s * 0.22, yRadius: s * 0.22)
+    // macOS icon grid: the rounded square fills ~80% of the canvas (824 of
+    // 1024 px), leaving a clear margin so the Dock sizes it like other apps.
+    let shape = s * 824.0 / 1024.0
+    let inset = (s - shape) / 2
+    let rect = NSRect(x: inset, y: inset, width: shape, height: shape)
+    let path = NSBezierPath(roundedRect: rect, xRadius: shape * 0.2237, yRadius: shape * 0.2237)
 
     let gradient = NSGradient(colors: [
         NSColor(srgbRed: 0.75, green: 0.86, blue: 0.95, alpha: 1.0),
@@ -33,7 +37,7 @@ func render(px: Int) -> NSBitmapImageRep {
     ])!
     gradient.draw(in: path, angle: -90)
 
-    let cfg = NSImage.SymbolConfiguration(pointSize: s * 0.55, weight: .semibold)
+    let cfg = NSImage.SymbolConfiguration(pointSize: shape * 0.55, weight: .semibold)
         .applying(.init(paletteColors: [.white]))
     if let sym = NSImage(systemSymbolName: "speaker.wave.2.fill", accessibilityDescription: nil)?
         .withSymbolConfiguration(cfg) {
@@ -41,7 +45,7 @@ func render(px: Int) -> NSBitmapImageRep {
         let h = sym.size.height
         let dx = (s - w) / 2
         // Tiny optical nudge left — the speaker + waves feel right-heavy.
-        let drawRect = NSRect(x: dx - s * 0.02, y: (s - h) / 2, width: w, height: h)
+        let drawRect = NSRect(x: dx - shape * 0.02, y: (s - h) / 2, width: w, height: h)
         sym.draw(in: drawRect)
     }
 

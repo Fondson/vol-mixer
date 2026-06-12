@@ -27,11 +27,40 @@ jobs:
         with:
           xcode-version: latest-stable
 
+      # Optional: import a stable self-signed cert (CN must be vol-mixer-dev, so
+      # build.sh finds it) so the Audio Capture grant survives updates. Without
+      # the secret, the build falls back to ad-hoc signing.
+      - name: Import signing certificate
+        env:
+          CERT_P12: ${{ secrets.SIGNING_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          [ -n "$CERT_P12" ] || { echo "no SIGNING_CERT_P12 — ad-hoc signing"; exit 0; }
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
       - name: Build .app
         run: ./scripts/build.sh
 
       - name: Zip (codesign-preserving)
         run: ditto -c -k --keepParent "$BUNDLE" "$ASSET"
+
+      # Detached Ed25519 signature the in-app updater checks before installing.
+      # Without the secret no .sig is published and auto-update stays inert.
+      - name: Sign update
+        env:
+          UPDATE_PRIVATE_KEY: ${{ secrets.UPDATE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "$UPDATE_PRIVATE_KEY" ] || { echo "no UPDATE_PRIVATE_KEY — skipping"; exit 0; }
+          ./scripts/sign-update.swift "$ASSET"
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v2
@@ -50,7 +79,11 @@ jobs:
           SHA: ${{ steps.sha.outputs.sha }}
         run: |
           set -euo pipefail
-          gh release create "$TAG" "$ASSET" --title "$TAG" --generate-notes
+          ASSETS="$ASSET"; [ -f "$ASSET.sig" ] && ASSETS="$ASSET $ASSET.sig"
+          # A rerun after a partial failure uploads to the existing release
+          # instead of failing because the release already exists.
+          gh release create "$TAG" $ASSETS --title "$TAG" --generate-notes \
+            || for f in $ASSETS; do gh release upload "$TAG" "$f" --clobber; done
           gh release view "$TAG" --json body --jq .body > /tmp/notes.md
           {
             echo ""

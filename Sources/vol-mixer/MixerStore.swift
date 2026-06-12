@@ -71,7 +71,11 @@ final class MixerStore {
         for pid in activePIDs {
             mixers[pid]?.stop()
             mixers.removeValue(forKey: pid)
-            applyEffective(pid: pid)
+            // Recreate even at unity gain: this PID was actively tapped, so keep
+            // routing it through the new device (applyEffective would skip 1.0).
+            let m = VolumeMixer(targetPID: pid, gain: effectiveGain(pid: pid))
+            do { try m.start(); mixers[pid] = m }
+            catch { errors[pid] = describe(error) }
         }
     }
 
@@ -100,23 +104,58 @@ final class MixerStore {
         }
     }
 
+    private func stopListeningForDefaultOutputChanges() {
+        guard let block = defaultOutputListener else { return }
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain)
+        AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject), &addr, nil, block)
+        defaultOutputListener = nil
+    }
+
     func refresh() {
+        pruneDeadProcesses()
         do {
             let all = try AudioProcessList.all()
-            processes = all
+            let visible = all
                 .filter { $0.pid != self.ownPID }
                 .filter { $0.isRunning || self.mixers[$0.pid] != nil }
-                .sorted { a, b in
-                    // Active mixers first, then currently playing, then by name.
-                    let aMixing = mixers[a.pid] != nil
-                    let bMixing = mixers[b.pid] != nil
-                    if aMixing != bMixing { return aMixing }
-                    if a.isRunning != b.isRunning { return a.isRunning }
-                    return a.displayName.localizedCaseInsensitiveCompare(b.displayName) == .orderedAscending
-                }
+            // Resolve each display name once (NSRunningApplication lookups aren't
+            // free) rather than re-resolving inside every sort comparison.
+            let named = visible.map { (info: $0, name: $0.displayName) }
+            processes = named.sorted { a, b in
+                // Active mixers first, then currently playing, then by name.
+                let aMixing = mixers[a.info.pid] != nil
+                let bMixing = mixers[b.info.pid] != nil
+                if aMixing != bMixing { return aMixing }
+                if a.info.isRunning != b.info.isRunning { return a.info.isRunning }
+                return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+            }.map { $0.info }
         } catch {
             // Swallow — leave the previous list on screen.
         }
+    }
+
+    // PIDs are recycled by macOS, so drop state for processes that have exited
+    // before a new process can inherit an old volume/mute (and stop its tap).
+    private func pruneDeadProcesses() {
+        let tracked = Set(mixers.keys)
+            .union(gains.keys).union(muted).union(errors.keys)
+        for pid in tracked where !Self.processAlive(pid) {
+            mixers[pid]?.stop()
+            mixers.removeValue(forKey: pid)
+            gains.removeValue(forKey: pid)
+            muted.remove(pid)
+            errors.removeValue(forKey: pid)
+        }
+    }
+
+    private static func processAlive(_ pid: pid_t) -> Bool {
+        // kill(pid, 0) probes existence without delivering a signal.
+        if kill(pid, 0) == 0 { return true }
+        return errno == EPERM   // exists but owned by another user
     }
 
     func setGain(pid: pid_t, gain: Float) {
@@ -167,13 +206,14 @@ final class MixerStore {
         muted.contains(pid) ? 0 : Self.gainCurve(gains[pid] ?? 1.0)
     }
 
-    /// Maps slider position (0…1.5) to an audio gain multiplier. Linear gain
-    /// is perceptually misleading — 0.5 amplitude only sounds ~6 dB quieter.
-    /// Cube law for attenuation gives audible steps across the whole slider;
-    /// boost (>1.0) stays linear since hard-clipping is the real ceiling.
+    /// Maps slider position (0…1.5) to a gain multiplier with an exponential
+    /// taper, so equal slider moves feel like equal loudness steps.
     private static func gainCurve(_ position: Float) -> Float {
         let p = max(0, position)
-        return p <= 1.0 ? p * p * p : p
+        if p >= 1.0 { return p }   // boost is linear, so 150% on the slider is 1.5×
+        // 40 dB taper, unity at 1.0; fade to silence across the bottom tenth.
+        let curve = expf(4.605 * p) / 100.0
+        return p < 0.1 ? curve * (p / 0.1) : curve
     }
 
     /// Pushes the effective gain (0 if muted, else slider value) to the mixer,
@@ -205,6 +245,7 @@ final class MixerStore {
         mixers.removeAll()
         refreshTimer?.invalidate()
         refreshTimer = nil
+        stopListeningForDefaultOutputChanges()
     }
 
     private func describe(_ error: Error) -> String {

@@ -18,10 +18,14 @@ final class VolumeMixer {
     private var aggregateID: AudioObjectID = 0
     private var ioProcID: AudioDeviceIOProcID?
     private var started = false
+    // Eased toward the target gain inside the render loop so a volume change
+    // ramps over the buffer instead of jumping and clicking.
+    private var smoothedGain: Float = 1.0
 
     init(targetPID: pid_t, gain: Float) {
         self.targetPID = targetPID
         self.gainLock.withLock { $0 = gain }
+        self.smoothedGain = gain
     }
 
     func setGain(_ g: Float) {
@@ -98,7 +102,8 @@ final class VolumeMixer {
 
     private func render(input: UnsafePointer<AudioBufferList>,
                         output: UnsafeMutablePointer<AudioBufferList>) {
-        let gain = gainLock.withLock { $0 }
+        let target = gainLock.withLock { $0 }
+        let start = smoothedGain
 
         let inList = UnsafeMutableAudioBufferListPointer(
             UnsafeMutablePointer(mutating: input))
@@ -119,10 +124,17 @@ final class VolumeMixer {
             }
             let bytes = min(inBuf.mDataByteSize, outBuf.mDataByteSize)
             let samples = Int(bytes) / MemoryLayout<Float>.size
-            if gain == 1.0 {
+            if start == 1.0 && target == 1.0 {
                 memcpy(outPtr, inPtr, Int(bytes))
             } else {
-                for s in 0..<samples { outPtr[s] = inPtr[s] * gain }
+                // Ramp across the buffer, not a constant multiply — a sudden
+                // gain jump clicks.
+                let step = samples > 0 ? (target - start) / Float(samples) : 0
+                var g = start
+                for s in 0..<samples {
+                    outPtr[s] = inPtr[s] * g
+                    g += step
+                }
             }
             // Zero any tail the output expected but we didn't fill.
             if outBuf.mDataByteSize > bytes {
@@ -136,6 +148,7 @@ final class VolumeMixer {
                 memset(p, 0, Int(outList[i].mDataByteSize))
             }
         }
+        smoothedGain = target
     }
 
     func stop() {

@@ -3,6 +3,9 @@ import AppKit
 
 struct ContentView: View {
     @Environment(MixerStore.self) private var store
+    // The standalone window hides this — its floating traffic-light buttons sit
+    // where the title would; the popover has no chrome, so it shows the name.
+    var showsTitle = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -31,10 +34,12 @@ struct ContentView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "speaker.wave.2.fill")
-                .foregroundStyle(.secondary)
-            Text("Volume Mixer")
-                .font(.headline)
+            if showsTitle {
+                Image(systemName: "speaker.wave.2.fill")
+                    .foregroundStyle(.secondary)
+                Text("Volume Mixer")
+                    .font(.headline)
+            }
             Spacer()
             Button {
                 store.releaseAll()
@@ -44,7 +49,7 @@ struct ContentView: View {
             .buttonStyle(.borderless)
             .labelStyle(.iconOnly)
             .disabled(!store.hasAnyActive)
-            .help("Release every tap and restore all sliders to 100%")
+            .help("Reset every app to 100%")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -178,7 +183,7 @@ private struct ProcessRow: View {
         .disabled(!store.isActive(pid: process.pid)
                   && gainValue == 1.0
                   && !store.isMuted(pid: process.pid))
-        .help("Reset to 100% and release the tap")
+        .help("Reset to 100%")
     }
 
     @ViewBuilder

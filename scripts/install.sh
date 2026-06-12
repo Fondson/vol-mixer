@@ -14,6 +14,11 @@ echo "→ downloading latest release"
 curl -fL "$URL" -o "$ZIP"
 
 echo "→ installing to $DEST"
+# Quit any running copy and delete the old bundle first, so we install a clean
+# tree (unzip -o would merge new files over stale ones and break codesigning).
+osascript -e 'tell application "Volume Mixer" to quit' >/dev/null 2>&1 || true
+sleep 1
+rm -rf "$APP"
 unzip -qo "$ZIP" -d "$DEST"
 # Strip the quarantine attr so Gatekeeper doesn't block the ad-hoc-signed bundle.
 xattr -cr "$APP"

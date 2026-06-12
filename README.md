@@ -7,7 +7,7 @@ Vibecoded Windows-style per-app volume control for macOS — a native SwiftUI mi
 <br clear="all" />
 <br clear="all" />
 
-Built on **Core Audio Process Taps** (requires macOS 14.2+). No kernel extension, no virtual audio driver, no external dependencies.
+Built on **Core Audio Process Taps** (requires macOS 14.2+, Apple Silicon). No kernel extension, no virtual audio driver, no external dependencies.
 
 <img width="552" height="187" alt="Volume Mixer screenshot" src="https://github.com/user-attachments/assets/128d5cbb-5fe5-4c55-8071-5d668f51eefb" />
 
@@ -19,18 +19,7 @@ One-liner — downloads the latest prebuilt `.app`, installs to `/Applications`,
 curl -fsSL https://raw.githubusercontent.com/Fondson/vol-mixer/main/scripts/install.sh | bash
 ```
 
-> Don't trust it? Don't run it.
-
-## Verify the release
-
-Every release is built in [GitHub Actions](.github/workflows/release.yml) with a Sigstore-signed [SLSA provenance](https://slsa.dev/spec/v1.0/provenance) attestation binding the `.app.zip` to the exact commit it was built from. To verify before installing:
-
-```sh
-curl -L https://github.com/Fondson/vol-mixer/releases/latest/download/Volume.Mixer.app.zip -o Volume.Mixer.app.zip
-gh attestation verify Volume.Mixer.app.zip --repo Fondson/vol-mixer
-```
-
-Exit code `0` means the bytes were produced by this repo's release workflow on a GitHub-hosted runner — no local build machine, no out-of-band upload.
+> Don't trust it? Don't run it. Every release is provenance-attested — [verify the download](SECURITY.md#verifying-a-download) before installing.
 
 ## Build from source
 
@@ -60,3 +49,11 @@ Running the CLI directly from `./build/release/vol-mixer` won't pass TCC — alw
 ## Known limitations
 
 - Core Audio Process Taps are macOS 14.2+. Earlier versions need a different approach (kext / virtual driver / Background Music).
+
+## Security
+
+Volume Mixer runs entirely as your normal user account — no background service running as administrator, no privileged helper. See [SECURITY.md](SECURITY.md) for the trust model and how to verify a download.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
