@@ -32,8 +32,7 @@ workflow and was not tampered with.
 ## Reporting a vulnerability
 
 Please report security issues privately rather than opening a public issue:
-
-- Preferred: the repository's **Security → Report a vulnerability** tab.
-- Or email **fondsont@gmail.com**.
+open a private report under the repository's **Security → Report a
+vulnerability** tab ([new advisory](https://github.com/Fondson/vol-mixer/security/advisories/new)).
 
 You'll get a reply within a few days with confirmation and a fix plan.
