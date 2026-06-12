@@ -26,8 +26,6 @@
     <string>Volume Mixer taps the selected application's audio so it can be played back at a user-chosen volume.</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
-    <key>LSUIElement</key>
-    <true/>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 Volume Mixer</string>
 </dict>

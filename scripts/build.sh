@@ -26,18 +26,22 @@ cp "$BIN_PATH" "$APP/Contents/MacOS/$BIN"
 cp App/Info.plist "$APP/Contents/Info.plist"
 cp App/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
-# Ensure the persistent signing cert exists locally. setup-signing.sh is
-# idempotent. Skip in CI — runners are ephemeral; ad-hoc signing is fine.
+# Ensure the persistent signing cert exists locally (setup-signing.sh is safe
+# to re-run). Skip in CI — the workflow imports the cert and sets SIGN_IDENTITY.
 if [[ -z "${CI:-}" ]] && ! security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
     echo "→ bootstrapping persistent signing identity (one-time)"
     ./scripts/setup-signing.sh
 fi
 
-if security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
+# Trust an explicit identity from the environment (CI sets it after importing
+# the cert) over the keychain search, which isn't reliable across CI steps.
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+    IDENTITY="$SIGN_IDENTITY"
+elif security find-certificate -c "$CERT_NAME" >/dev/null 2>&1; then
     IDENTITY="$CERT_NAME"
 else
     IDENTITY="-"
-    echo "→ bootstrap failed — ad-hoc signing (TCC grant will reset each rebuild)"
+    echo "→ no signing identity — ad-hoc signing (TCC grant will reset each rebuild)"
 fi
 
 echo "→ codesigning ($IDENTITY)"
