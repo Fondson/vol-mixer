@@ -3,13 +3,17 @@ import SwiftUI
 import ServiceManagement
 
 @MainActor
-final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSWindowDelegate {
+final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let store = MixerStore()
     private var statusItem: NSStatusItem!
-    private var popover: NSPopover!
+    private var panel: NSPanel?
     private var mainWindow: NSWindow?
     private var fullyQuitting = false
-    private var popoverClickMonitor: Any?
+    private var clickMonitor: Any?
+    private var panelResignObserver: Any?
+    // When the panel closes because it lost focus, this records when — so the
+    // same click that asked to toggle it doesn't immediately reopen it.
+    private var lastPanelResignClose: Date?
 
     // Remembered across launches: false once the user closes the window, so a
     // login-launched or relaunched app stays a menu-bar-only utility.
@@ -31,16 +35,6 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             button.action = #selector(statusItemClicked(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
-
-        popover = NSPopover()
-        popover.behavior = .transient
-        popover.delegate = self
-        popover.animates = true
-        // Auto-size the popover from SwiftUI's intrinsic content size. Bounds
-        // (width + maxHeight) are declared on ContentView's root .frame.
-        let host = NSHostingController(rootView: ContentView(showsTitle: true).environment(store))
-        host.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = host
 
         store.beginRefreshing()
         // Open the window only if it was open last time (always on first run);
@@ -71,23 +65,11 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func makeMainWindow() -> NSWindow {
-        let blur = NSVisualEffectView()
-        blur.material = .popover
-        blur.blendingMode = .behindWindow
-        blur.state = .active
-
-        // Hosted inside the blur view at a fixed window size. ignoresSafeArea
-        // lets the top row sit beside the floating traffic-light buttons.
+        // ignoresSafeArea lets the top row sit beside the floating traffic-light
+        // buttons; the window rounds its own corners, so it passes no mask here.
         let hosting = NSHostingView(
             rootView: ContentView().environment(store).ignoresSafeArea())
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        blur.addSubview(hosting)
-        NSLayoutConstraint.activate([
-            hosting.topAnchor.constraint(equalTo: blur.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: blur.bottomAnchor),
-            hosting.leadingAnchor.constraint(equalTo: blur.leadingAnchor),
-            hosting.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
-        ])
+        let blur = Self.frostedContainer(hosting: hosting, cornerRadius: nil)
 
         // Size to the content once at creation (clamped) so a short list isn't
         // marooned in a tall window; the inner scroll view handles overflow.
@@ -175,50 +157,140 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     // MARK: - Status item click
 
     @objc private func statusItemClicked(_ sender: Any?) {
-        let type = NSApp.currentEvent?.type
-        NSLog("vol-mixer: status item clicked, event type = %@",
-              type.map { "\($0.rawValue)" } ?? "nil")
-        guard let event = NSApp.currentEvent else { togglePopover(); return }
+        guard let event = NSApp.currentEvent else { togglePanel(); return }
         switch event.type {
         case .rightMouseUp:
-            if popover.isShown { popover.performClose(nil) }
+            closePanel()
             showContextMenu()
         default:
-            togglePopover()
+            togglePanel()
         }
     }
 
-    private func togglePopover() {
-        guard let button = statusItem.button else { return }
-        if popover.isShown {
-            popover.performClose(nil)
-            return
+    private func togglePanel() {
+        if panel?.isVisible == true {
+            closePanel()
+        } else if let t = lastPanelResignClose, Date().timeIntervalSince(t) < 0.25 {
+            // The panel already closed itself a moment ago when this same click
+            // pulled focus away — don't bounce it straight back open.
+            lastPanelResignClose = nil
+        } else {
+            showPanel()
         }
-        // Re-scan the process list before opening so rows are up-to-date
-        // and the popover sizes to current content.
+    }
+
+    private func showPanel() {
+        // Rebuilt on each open: opens are user-initiated so the cost is trivial,
+        // and tearing it down on close stops it re-rendering while hidden.
+        closePanel()
+        let (p, hosting) = makePanel()
+        panel = p
+
         store.refresh()
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-        // Make the popover key so its controls respond, but don't activate the
-        // app — opening the popover shouldn't pull the standalone window forward.
-        popover.contentViewController?.view.window?.makeKey()
-        // Clicks on other menu-bar items land in a different process, so only a
-        // global monitor sees them — use it to close the popover.
-        removePopoverClickMonitor()
-        popoverClickMonitor = NSEvent.addGlobalMonitorForEvents(
+        let h = min(max(hosting.fittingSize.height, 120), 600)
+        p.setContentSize(NSSize(width: 560, height: h))
+        positionPanel(p)
+        p.makeKeyAndOrderFront(nil)
+
+        // Close when the panel loses focus — this covers Cmd-Tab, Mission Control,
+        // and clicks in our own window, which the global monitor below can't see.
+        panelResignObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didResignKeyNotification, object: p, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.lastPanelResignClose = Date()
+                self?.closePanel()
+            }
+        }
+        // Clicks in other apps or other menu-bar items don't always pull focus
+        // away from the panel, so a global mouse monitor backstops those.
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in self?.popover.performClose(nil) }
+            Task { @MainActor in self?.closePanel() }
         }
     }
 
-    func popoverDidClose(_ notification: Notification) {
-        removePopoverClickMonitor()
+    private func closePanel() {
+        panel?.orderOut(nil)
+        panel = nil
+        removeClickMonitor()
+        if let obs = panelResignObserver {
+            NotificationCenter.default.removeObserver(obs)
+            panelResignObserver = nil
+        }
     }
 
-    private func removePopoverClickMonitor() {
-        if let monitor = popoverClickMonitor {
+    private func positionPanel(_ p: NSPanel) {
+        guard let button = statusItem.button, let bWin = button.window else { return }
+        let b = bWin.convertToScreen(button.convert(button.bounds, to: nil))
+        let size = p.frame.size
+        var x = b.midX - size.width / 2
+        let y = b.minY - 6 - size.height
+        if let vis = (bWin.screen ?? NSScreen.main)?.visibleFrame {
+            x = max(vis.minX + 8, min(x, vis.maxX - size.width - 8))
+        }
+        p.setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
+    private func makePanel() -> (panel: MixerPanel, hosting: NSView) {
+        let hosting = NSHostingView(rootView: ContentView(showsTitle: true).environment(store))
+        let blur = Self.frostedContainer(hosting: hosting, cornerRadius: 12)
+
+        let p = MixerPanel(contentRect: NSRect(x: 0, y: 0, width: 560, height: 200),
+                           styleMask: [.borderless, .nonactivatingPanel],
+                           backing: .buffered, defer: false)
+        p.contentView = blur
+        p.isOpaque = false
+        p.backgroundColor = .clear
+        p.hasShadow = true
+        p.level = .statusBar
+        p.isFloatingPanel = true
+        p.hidesOnDeactivate = false
+        p.isReleasedWhenClosed = false
+        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        return (p, hosting)
+    }
+
+    // Frosted blur for the panel and the standalone window. A non-nil cornerRadius
+    // rounds it with a mask image — the blur view ignores the normal corner radius.
+    private static func frostedContainer(hosting: NSView, cornerRadius: CGFloat?) -> NSVisualEffectView {
+        let blur = NSVisualEffectView()
+        blur.material = .popover
+        blur.blendingMode = .behindWindow
+        blur.state = .active
+        if let r = cornerRadius {
+            blur.maskImage = roundedMask(radius: r)
+        }
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        blur.addSubview(hosting)
+        NSLayoutConstraint.activate([
+            hosting.topAnchor.constraint(equalTo: blur.topAnchor),
+            hosting.bottomAnchor.constraint(equalTo: blur.bottomAnchor),
+            hosting.leadingAnchor.constraint(equalTo: blur.leadingAnchor),
+            hosting.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
+        ])
+        return blur
+    }
+
+    private func removeClickMonitor() {
+        if let monitor = clickMonitor {
             NSEvent.removeMonitor(monitor)
-            popoverClickMonitor = nil
+            clickMonitor = nil
         }
+    }
+
+    // A stretchable rounded square: the corner insets stay fixed while the
+    // middle scales, so the panel's corners round at any size.
+    private static func roundedMask(radius: CGFloat) -> NSImage {
+        let d = radius * 2 + 1
+        let image = NSImage(size: NSSize(width: d, height: d))
+        image.lockFocus()
+        NSColor.black.setFill()
+        NSBezierPath(roundedRect: NSRect(x: 0, y: 0, width: d, height: d),
+                     xRadius: radius, yRadius: radius).fill()
+        image.unlockFocus()
+        image.resizingMode = .stretch
+        image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+        return image
     }
 
     private func showContextMenu() {
@@ -337,4 +409,10 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     func applicationWillTerminate(_ notification: Notification) {
         store.stopAll()
     }
+}
+
+// A borderless panel won't become key by default, so its sliders would need a
+// throwaway first click. Overriding this lets them respond immediately.
+private final class MixerPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }

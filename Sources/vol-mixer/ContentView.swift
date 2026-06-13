@@ -95,9 +95,6 @@ struct ContentView: View {
                 .foregroundStyle(.tertiary)
             Text("No audio-producing processes")
                 .foregroundStyle(.secondary)
-            Text("Play something — the list refreshes automatically.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
