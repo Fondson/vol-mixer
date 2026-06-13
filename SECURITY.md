@@ -14,7 +14,9 @@ Only the latest release receives fixes. Get it from the
 - The only special permission it requests is **Audio Capture**, which macOS
   asks you to grant the first time you move a slider. That permission is what
   lets it read another app's audio so it can replay it at a different volume.
-- It makes no network connections and collects no data.
+- The only network connections it makes are to GitHub, to check for and
+  download updates (on launch and once a day). Turn this off with the menu's
+  **Automatically Update** toggle. It sends no telemetry and collects no data.
 
 ## Verifying a download
 

@@ -155,19 +155,22 @@ final class Updater {
         // A detached helper waits for us to exit, then swaps the bundle. It keeps
         // the old copy aside until the new one is in place and restores it on
         // failure, so a permission error can't leave no app installed.
+        // The two paths are passed in as arguments rather than written into the
+        // script text, so nothing in a path can be mistaken for a command.
         let script = """
         #!/bin/sh
-        while /bin/kill -0 \(pid) 2>/dev/null; do sleep 0.2; done
-        /bin/rm -rf "\(dest).old"
-        if /bin/mv "\(dest)" "\(dest).old"; then
-            if /bin/mv "\(newApp)" "\(dest)"; then
-                /bin/rm -rf "\(dest).old"
+        pid=\(pid); dest="$1"; new="$2"
+        while /bin/kill -0 "$pid" 2>/dev/null; do sleep 0.2; done
+        /bin/rm -rf "$dest.old"
+        if /bin/mv "$dest" "$dest.old"; then
+            if /bin/mv "$new" "$dest"; then
+                /bin/rm -rf "$dest.old"
             else
-                /bin/mv "\(dest).old" "\(dest)"
+                /bin/mv "$dest.old" "$dest"
             fi
         fi
-        /usr/bin/xattr -cr "\(dest)"
-        /usr/bin/open "\(dest)"
+        /usr/bin/xattr -cr "$dest"
+        /usr/bin/open "$dest"
         """
         let scriptURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("vm-relaunch-\(UUID().uuidString).sh")
@@ -175,7 +178,7 @@ final class Updater {
             try script.write(to: scriptURL, atomically: true, encoding: .utf8)
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/bin/sh")
-            p.arguments = [scriptURL.path]
+            p.arguments = [scriptURL.path, dest, newApp]
             try p.run()
             NSApp.terminate(nil)
         } catch {
