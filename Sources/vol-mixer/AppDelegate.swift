@@ -14,6 +14,9 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     // When the panel closes because it lost focus, this records when — so the
     // same click that asked to toggle it doesn't immediately reopen it.
     private var lastPanelResignClose: Date?
+    // What an open surface was last sized for (see fitKey), so a live refresh
+    // re-measures only when something that changes the height changed.
+    private var lastFitKey = ""
 
     // Remembered across launches: false once the user closes the window, so a
     // login-launched or relaunched app stays a menu-bar-only utility.
@@ -36,6 +39,7 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
+        store.onProcessesChanged = { [weak self] in self?.refitOpenSurfaces() }
         store.beginRefreshing()
         // Open the window only if it was open last time (always on first run);
         // at login or after the user closed it, stay menu-bar-only.
@@ -58,6 +62,7 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         }
         showWindowAtLaunch = true
         store.refresh()
+        fitWindowHeight()   // built once, so re-fit to the current list on each open
         // Bring back the Dock icon (we drop to menu-bar-only when the window closes).
         NSApp.setActivationPolicy(.regular)
         mainWindow?.makeKeyAndOrderFront(nil)
@@ -71,10 +76,8 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
             rootView: ContentView().environment(store).ignoresSafeArea())
         let blur = Self.frostedContainer(hosting: hosting, cornerRadius: nil)
 
-        // Size to the content once at creation (clamped) so a short list isn't
-        // marooned in a tall window; the inner scroll view handles overflow.
-        let fitH = hosting.fittingSize.height
-        let height = fitH > 100 ? min(fitH, 600) : 440
+        // A default height; showMainWindow resizes it to the current list on open.
+        let height: CGFloat = 440
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 560, height: height),
@@ -183,13 +186,11 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         // Rebuilt on each open: opens are user-initiated so the cost is trivial,
         // and tearing it down on close stops it re-rendering while hidden.
         closePanel()
-        let (p, hosting) = makePanel()
+        store.refresh()
+        let p = makePanel()
         panel = p
 
-        store.refresh()
-        let h = min(max(hosting.fittingSize.height, 120), 600)
-        p.setContentSize(NSSize(width: 560, height: h))
-        positionPanel(p)
+        fitPanelHeight()
         p.makeKeyAndOrderFront(nil)
 
         // Close when the panel loses focus — this covers Cmd-Tab, Mission Control,
@@ -222,16 +223,25 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
     private func positionPanel(_ p: NSPanel) {
         guard let button = statusItem.button, let bWin = button.window else { return }
         let b = bWin.convertToScreen(button.convert(button.bounds, to: nil))
-        let size = p.frame.size
+        var size = p.frame.size
         var x = b.midX - size.width / 2
-        let y = b.minY - 6 - size.height
+        let top = b.minY - 6
+        var y = top - size.height
         if let vis = (bWin.screen ?? NSScreen.main)?.visibleFrame {
             x = max(vis.minX + 8, min(x, vis.maxX - size.width - 8))
+            // Too tall for the space below the menu bar: shrink it so the bottom
+            // stays on screen (the list scrolls inside the shorter panel).
+            let lowest = vis.minY + 8
+            if y < lowest {
+                size.height = top - lowest
+                p.setContentSize(size)
+                y = lowest
+            }
         }
         p.setFrameOrigin(NSPoint(x: x, y: y))
     }
 
-    private func makePanel() -> (panel: MixerPanel, hosting: NSView) {
+    private func makePanel() -> MixerPanel {
         let hosting = NSHostingView(rootView: ContentView(showsTitle: true).environment(store))
         let blur = Self.frostedContainer(hosting: hosting, cornerRadius: 12)
 
@@ -247,7 +257,56 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         p.hidesOnDeactivate = false
         p.isReleasedWhenClosed = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        return (p, hosting)
+        return p
+    }
+
+    // The shown list scrolls, so its hosting view reports a collapsed height.
+    // Measure a copy rendered unscrolled instead; cap so a long list scrolls.
+    private func contentHeight(showsTitle: Bool) -> CGFloat {
+        let probe = NSHostingView(
+            rootView: ContentView(showsTitle: showsTitle, measuring: true).environment(store))
+        return min(probe.fittingSize.height, 600)
+    }
+
+    // Re-fit an open surface so its height tracks the list. The 2s refresh fires
+    // every tick, so skip unless the height-affecting state changed (see fitKey).
+    private func refitOpenSurfaces() {
+        guard panel != nil || (mainWindow?.isVisible ?? false) else { return }
+        guard fitKey() != lastFitKey else { return }
+        if panel != nil { fitPanelHeight() }
+        if mainWindow?.isVisible ?? false { fitWindowHeight() }
+    }
+
+    // What changes the list's height: row count plus how many rows show an error
+    // line. Watching `errors` directly would fire on every slider drag, so avoid it.
+    private func fitKey() -> String {
+        let errorRows = store.processes.reduce(into: 0) { n, p in
+            if store.errors[p.pid] != nil { n += 1 }
+        }
+        return "\(store.processes.count)/\(errorRows)"
+    }
+
+    private func fitPanelHeight() {
+        guard let p = panel else { return }
+        lastFitKey = fitKey()
+        p.setContentSize(NSSize(width: 560, height: contentHeight(showsTitle: true)))
+        positionPanel(p)
+    }
+
+    private func fitWindowHeight() {
+        guard let w = mainWindow else { return }
+        lastFitKey = fitKey()
+        let top = w.frame.maxY   // keep the top edge fixed; grow/shrink downward
+        var h = contentHeight(showsTitle: false)
+        var bottom = top - h
+        // Keep the bottom on screen like the panel does; the list scrolls inside
+        // the shorter window rather than running off a short display.
+        if let vis = (w.screen ?? NSScreen.main)?.visibleFrame, bottom < vis.minY + 8 {
+            bottom = vis.minY + 8
+            h = top - bottom
+        }
+        w.setFrame(NSRect(x: w.frame.minX, y: bottom, width: 560, height: h),
+                   display: true, animate: false)
     }
 
     // Frosted blur for the panel and the standalone window. A non-nil cornerRadius

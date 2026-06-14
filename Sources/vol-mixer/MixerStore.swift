@@ -22,6 +22,9 @@ final class MixerStore {
     /// The AudioObjectID of the system default output device.
     var currentOutputDeviceID: AudioObjectID = 0
 
+    /// Fired after `processes` is rebuilt, so an open panel/window can resize to fit.
+    var onProcessesChanged: (() -> Void)?
+
     private var mixers: [pid_t: VolumeMixer] = [:]
     private var defaultOutputListener: AudioObjectPropertyListenerBlock?
     private var refreshTimer: Timer?
@@ -133,6 +136,7 @@ final class MixerStore {
                 if a.info.isRunning != b.info.isRunning { return a.info.isRunning }
                 return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
             }.map { $0.info }
+            onProcessesChanged?()
         } catch {
             // Swallow — leave the previous list on screen.
         }

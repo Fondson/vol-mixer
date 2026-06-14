@@ -6,6 +6,8 @@ struct ContentView: View {
     // The standalone window hides this — its floating traffic-light buttons sit
     // where the title would; the popover has no chrome, so it shows the name.
     var showsTitle = false
+    // Rendered unscrolled in this mode so its true height can be measured.
+    var measuring = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -15,21 +17,24 @@ struct ContentView: View {
             Divider()
             if store.processes.isEmpty {
                 empty
+            } else if measuring {
+                VStack(spacing: 0) { processRows }
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(store.processes.enumerated()), id: \.element.pid) { i, p in
-                            if i > 0 { Divider().opacity(0.35) }
-                            ProcessRow(process: p)
-                        }
-                    }
+                    LazyVStack(spacing: 0) { processRows }
                 }
                 .scrollIndicators(.hidden)
             }
         }
-        // Fixed width, content-hugging height, scroll when content exceeds 600pt.
+        // The panel and window set the height; this just fills it and scrolls.
         .frame(width: 560)
-        .frame(maxHeight: 600)
+    }
+
+    @ViewBuilder private var processRows: some View {
+        ForEach(Array(store.processes.enumerated()), id: \.element.pid) { i, p in
+            if i > 0 { Divider().opacity(0.35) }
+            ProcessRow(process: p)
+        }
     }
 
     private var header: some View {
