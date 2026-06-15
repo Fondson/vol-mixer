@@ -41,10 +41,9 @@ final class VolumeMixer {
         desc.uuid = UUID()
         desc.name = "vol-mixer-tap-\(targetPID)"
         desc.isPrivate = true
-        // .mutedWhenTapped: the source is silenced only while our IOProc is
-        // actively reading. As soon as we AudioDeviceStop, the process resumes
-        // on the hardware on its own — so reset/teardown leaves no residue.
-        desc.muteBehavior = .mutedWhenTapped
+        // .muted, not .mutedWhenTapped: mute the source the whole time, not just
+        // while we're reading — gaps (meeting apps restart audio constantly) leak it.
+        desc.muteBehavior = .muted
 
         var tap: AudioObjectID = kAudioObjectUnknown
         try caCheck(AudioHardwareCreateProcessTap(desc, &tap),
