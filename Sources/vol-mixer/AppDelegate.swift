@@ -291,6 +291,7 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
         lastFitKey = fitKey()
         p.setContentSize(NSSize(width: 560, height: contentHeight(showsTitle: true)))
         positionPanel(p)
+        p.invalidateShadow()
     }
 
     private func fitWindowHeight() {
@@ -309,14 +310,26 @@ final class VolMixerAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelega
                    display: true, animate: false)
     }
 
-    // Frosted blur for the panel and the standalone window. A non-nil cornerRadius
-    // rounds it with a mask image — the blur view ignores the normal corner radius.
-    private static func frostedContainer(hosting: NSView, cornerRadius: CGFloat?) -> NSVisualEffectView {
+    private static func frostedContainer(hosting: NSView, cornerRadius: CGFloat?) -> NSView {
+        if #available(macOS 26, *) {
+            let glass = NSGlassEffectView()
+            glass.contentView = hosting
+            glass.cornerRadius = cornerRadius ?? 0
+            if let r = cornerRadius {
+                // cornerRadius rounds the glass material, but the window shadow
+                // follows the square layer corners — clip the layer to match.
+                glass.wantsLayer = true
+                glass.layer?.cornerRadius = r
+                glass.layer?.masksToBounds = true
+            }
+            return glass
+        }
         let blur = NSVisualEffectView()
         blur.material = .popover
         blur.blendingMode = .behindWindow
         blur.state = .active
         if let r = cornerRadius {
+            // The blur ignores layer corner rounding, so round it with a mask image.
             blur.maskImage = roundedMask(radius: r)
         }
         hosting.translatesAutoresizingMaskIntoConstraints = false
